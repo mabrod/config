@@ -48,10 +48,10 @@ class ConfigBeanFactoryTest extends TestUtils {
             ConfigBeanFactory.create(config, classOf[ValidationBeanConfig])
         }
 
-        val expecteds = Seq(Missing("propNotListedInConfig", 77, "string"),
-            WrongType("shouldBeInt", 78, "number", "boolean"),
-            WrongType("should-be-boolean", 79, "boolean", "number"),
-            WrongType("should-be-list", 80, "list", "string"))
+        val expecteds = Seq(Missing("propNotListedInConfig", 84, "string"),
+            WrongType("shouldBeInt", 85, "number", "boolean"),
+            WrongType("should-be-boolean", 86, "boolean", "number"),
+            WrongType("should-be-list", 87, "list", "string"))
 
         checkValidationException(e, expecteds)
     }
@@ -172,6 +172,17 @@ class ConfigBeanFactoryTest extends TestUtils {
         assertEquals(Duration.ofMillis(500), beanConfig.getHalfSecond)
         assertEquals(Duration.ofMillis(1000), beanConfig.getSecond)
         assertEquals(Duration.ofMillis(1000), beanConfig.getSecondAsNumber)
+    }
+
+    @Test
+    def shouldParseDurationInISOFormat() {
+        val beanConfig: DurationsISOConfig = ConfigBeanFactory.create(loadConfig().getConfig("durationsISO"), classOf[DurationsISOConfig])
+        assertNotNull(beanConfig)
+        assertEquals(Duration.ofSeconds(30), beanConfig.getSecond)
+        assertEquals(Duration.ofMinutes(1), beanConfig.getMinute)
+        assertEquals(Duration.ofHours(5), beanConfig.getHour)
+        assertEquals(Duration.ofDays(10), beanConfig.getDay)
+        assertEquals(Duration.ofDays(-1), beanConfig.getYesterday)
     }
 
     @Test

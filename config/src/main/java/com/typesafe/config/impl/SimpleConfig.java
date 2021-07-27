@@ -10,6 +10,7 @@ import java.math.BigInteger;
 import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.Period;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
 import java.util.AbstractMap;
@@ -19,9 +20,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
 import com.typesafe.config.ConfigList;
@@ -357,7 +358,11 @@ final class SimpleConfig implements Config, MergeableValue, Serializable {
     @Override
     public Duration getDuration(String path) {
         ConfigValue v = find(path, ConfigValueType.STRING);
-        long nanos = parseDuration((String) v.unwrapped(), v.origin(), path);
+        String value  = (String) v.unwrapped();
+        if (isISODurationPrefix(value)){
+            return toISODuration(value, v.origin(), path);
+        }
+        long nanos = parseDuration(value, v.origin(), path);
         return Duration.ofNanos(nanos);
     }
 
@@ -716,6 +721,29 @@ final class SimpleConfig implements Config, MergeableValue, Serializable {
         }
     }
 
+    /**
+     * Parses a String input based on ISO 8601 time standard
+     *
+     * @param input
+     *            the string to parse
+     * @param originForException
+     *            origin of the value being parsed
+     * @param pathForException
+     *            path to include in exceptions
+     * @return Duration in ISO 8601 format
+     * @throws ConfigException
+     *             if string is invalid
+     */
+
+    public static Duration toISODuration(String input, ConfigOrigin originForException, String pathForException) {
+        try {
+            return Duration.parse(input);
+        } catch (DateTimeParseException e) {
+            throw new ConfigException.BadValue(originForException,
+                    pathForException, "Could not parse duration string '" + input + "'");
+        }
+
+    }
     /**
      * Parses a duration string. If no units are specified in the string, it is
      * assumed to be in milliseconds. The returned duration is in nanoseconds.
@@ -1107,6 +1135,31 @@ final class SimpleConfig implements Config, MergeableValue, Serializable {
         } else {
             addWrongType(accumulator, reference, value, path);
         }
+    }
+
+    /**
+     * Checks if a string is not null or empty
+     *
+     * @param input
+     *            the string to check
+     * @return boolean true if a String is not null and is not empty, otherwise false
+     */
+
+    private static boolean notNullOrEmpty(String input) {
+        return Objects.nonNull(input) && input.trim().length() > 0;
+    }
+
+    /**
+     * Checks if a string is in ISO 8601 time format
+     * e.g "PT15M" for 15 minutes or "-PT6H3M" for -6 hours and -3 minutes
+     *
+     * @param input
+     *            the string to check
+     * @return boolean true if String input starts with ISO 8601 time format, otherwise false
+     */
+
+    private static boolean isISODurationPrefix(String input) {
+        return notNullOrEmpty(input) && ((input.charAt(0) == 'P' || (input.charAt(0) == '-' && input.charAt(1) == 'P')));
     }
 
     @Override
